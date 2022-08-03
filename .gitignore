@@ -373,3 +373,6 @@ samconfig.toml
 *.code-workspace
 
 # End of https://www.toptal.com/developers/gitignore/api/osx,macos,linux,python,pycharm,visualstudiocode,sam+config
+
+# pyrelease
+src/git_version

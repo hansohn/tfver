@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
+import copy
 import json
 import re
-import copy
 from typing import Any, Dict, List
+
 import click
-from packaging.version import parse
 import requests
 import semver
+from packaging.version import parse
 
 TERRAFORM_RELEASES = "https://releases.hashicorp.com/terraform/index.json"
 
