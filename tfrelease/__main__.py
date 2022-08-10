@@ -3,6 +3,7 @@
 import copy
 import json
 import re
+import yaml
 from typing import Any, Dict, List
 
 import click
@@ -121,16 +122,19 @@ def sort_dict(data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @click.command()
-@click.option("--count", default=1, type=int, help="Return latest N number of versions.")
-@click.option("--match", default=None, type=str, help="Use regex match to filter version response. Example '(0|1)$'")
-@click.option("--include-prerelease", "--include_prerelease", default=False, is_flag=True, help="Include semver pre-release versions.")
-@click.option("--include-metadata", "--include_metadata", default=False, is_flag=True, help="Include release metadata in response")
+@click.option("-c", "--count", default=1, show_default=True, type=int, help="Return latest N number of minor release versions.")
+@click.option("-r", "--regex", type=str, help="Filter release versions using regex pattern matching. example: \'^(0.15|1)$\'")
+@click.option("-o", "--output", default="json", show_default=True, type=click.Choice(["text", "json", "yaml"], case_sensitive=False), help="The formatting style for command output.")
+@click.option("-p", "--prerelease", is_flag=True, help="Include pre-release versions in response.")
+@click.option("-v", "--verbose", is_flag=True, help="Include all release metadata in response.")
+@click.version_option()
 def main(
     url: str = TERRAFORM_RELEASES,
     count: int = 1,
-    match: str = None,
-    include_prerelease: bool = False,
-    include_metadata: bool = False,
+    regex: str = None,
+    output: str = "json",
+    prerelease: bool = False,
+    verbose: bool = False,
 ) -> str:
     """
     Compute Terraform versions. Return latest n versions as dict with optional tag values
@@ -147,7 +151,7 @@ def main(
     data = json.loads(req.text)
 
     # filter out prerelease versions
-    if not include_prerelease:
+    if not prerelease:
         data.update(
             {"versions": filter_dict(data=data["versions"], pattern=r"^v?\d+(\.\d+(\.\d+)?)?$")}
         )
@@ -166,22 +170,31 @@ def main(
     latest_mmp = max_version(mmp_versions)
     data["versions"][latest_mmp]["tags"] += ["latest"]
 
-    # if match filter versions based on regex match
+    # if regex, filter versions based on regex pattern
     # else return n results from data structure
-    if match:
-        data.update({"versions": filter_dict(data=data["versions"], pattern=match)})
+    if regex:
+        data.update({"versions": filter_dict(data=data["versions"], pattern=regex)})
     else:
         start_index = count * -1
         data.update({"versions": filter_dict(data=data["versions"], pattern=r"^v?\d+\.\d+$")})
         latest_n = slice_dict(data=data, key="versions", start_index=start_index)
 
     # process payload for response
-    release_data = data if match else latest_n
+    release_data = data if regex else latest_n
     release_data["versions"].update(rename_extended_versions(release_data["versions"]))
+    # release_vers = list(release_data["versions"].keys())
     release_vers = list(release_data["versions"].keys())
+    if len(release_vers) == 1:
+        output = "text"
+        release_vers = release_vers[0]
 
-    response = release_data if include_metadata else release_vers
-    click.echo(json.dumps(response, indent=4, sort_keys=True))
+    response = release_data if verbose else release_vers
+    if output.lower() =="text":
+        click.echo(response)
+    elif output.lower() == "yaml":
+        click.echo(yaml.dump(response, indent=4, sort_keys=True))
+    else:
+        click.echo(json.dumps(response, indent=4, sort_keys=True))
 
 
 if __name__ == "__main__":

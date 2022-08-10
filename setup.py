@@ -48,7 +48,7 @@ def git_version(version_: str) -> str:
     return 'no_git_version'
 
 
-def write_version(filename: str = str(REPO_ROOT / "src" / "git_version")) -> None:
+def write_version(filename: str = str(REPO_ROOT / "tfrelease" / "git_version")) -> None:
     """
     Write the Semver version + git hash to file, e.g. ".dev0+2f635dc265e78db6708f59f68e8009abb92c1e65".
 
