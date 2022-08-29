@@ -1,0 +1,31 @@
+---
+name: Python
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+env:
+  PYTHON_VERSION: 3.9
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      env-name: ${{ steps.env-name.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Disto Packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y software-properties-common jq make
+          sudo add-apt-repository ppa:deadsnakes/ppa
+          sudo apt-get install --no-install-recommends -y python${PYTHON_VERSION} python${PYTHON_VERSION}-venv python3-pip
+      - name: Configure Virtual Environment
+        run: |
+          make venv
+      - name: Lint
+        run: |
+          make lint
