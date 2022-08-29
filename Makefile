@@ -10,11 +10,11 @@ export SELF ?= $(MAKE)
 PROJECT_PATH ?= $(shell 'pwd')
 include $(PROJECT_PATH)/Makefile.*
 
-all: build
+all: venv build docker/build docker/run
 .PHONY: all
 
 REPO_NAME ?= $(shell basename $(CURDIR))
-SRC_DIR := src
+SRC_DIR := tfrelease
 
 #-------------------------------------------------------------------------------
 # python
@@ -127,8 +127,62 @@ lint: lint/all-python
 .PHONY: lint
 
 #-------------------------------------------------------------------------------
+# build
+#-------------------------------------------------------------------------------
+
+DIST_DIR ?= dist
+
+## Build python package
+build: $(DIST_DIR)
+	@echo "[INFO] Building python package. Storing artificat in dist directory: [$(DIST_DIR)]"
+	@$(VIRTUALENV_BIN_DIR)/python setup.py sdist --dist-dir '${DIST_DIR}'
+.PHONY: build
+
+#-------------------------------------------------------------------------------
+# docker
+#-------------------------------------------------------------------------------
+
+DOCKER_USER ?= hansohn
+DOCKER_REPO ?= tfrelease
+DOCKER_TAG ?= latest
+
+## Docker build image
+docker/build:
+	-@if docker stats --no-stream > /dev/null 2>&1; then \
+		echo "[INFO] Building '$(DOCKER_USER)/$(DOCKER_REPO):$(DOCKER_TAG)' docker image."; \
+		docker build -t "$(DOCKER_USER)/$(DOCKER_REPO):$(DOCKER_TAG)" .; \
+	else \
+		echo "[ERROR] Docker 'build' failed. Docker daemon is not Running."; \
+	fi
+.PHONY: docker/build
+
+## Docker run image
+docker/run:
+	-@if docker stats --no-stream > /dev/null 2>&1; then \
+		echo "[INFO] Running '$(DOCKER_USER)/$(DOCKER_REPO):$(DOCKER_TAG)' docker image"; \
+		docker run -it --rm "$(DOCKER_USER)/$(DOCKER_REPO):$(DOCKER_TAG)" bash; \
+	else \
+		echo "[ERROR] Docker 'run' failed. Docker daemon is not Running."; \
+	fi
+.PHONY: docker/run
+
+#-------------------------------------------------------------------------------
 # clean
 #-------------------------------------------------------------------------------
+
+## Clean python build directories
+clean/build:
+	@[ -d '$(DIST_DIR)' ] && rm -rf '$(DIST_DIR)/'*
+.PHONY: clean/build
+
+## Clean docker build images
+clean/docker:
+	-@if docker stats --no-stream > /dev/null 2>&1; then \
+		if docker inspect --type=image "$(DOCKER_USER)/$(DOCKER_REPO):$(DOCKER_TAG)" > /dev/null 2>&1; then \
+			docker image rm  "$(DOCKER_USER)/$(DOCKER_REPO):$(DOCKER_TAG)"; \
+		fi; \
+	fi
+.PHONY: clean/docker
 
 ## Clean virtual environment directory
 clean/venv:
@@ -136,5 +190,5 @@ clean/venv:
 .PHONY: clean/venv
 
 ## Clean
-clean: clean/venv
+clean: clean/build clean/docker clean/venv
 .PHONY: clean
