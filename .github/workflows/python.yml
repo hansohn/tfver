@@ -34,18 +34,11 @@ jobs:
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TEST_API_TOKEN }}
-        on:
-          push:
-            branches:
-              - main
       - name: Publish package to PyPI
-        run: make upload/pypi
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]] && [[ "$GITHUB_REF_NAME" =~ ^[0-9]+.[0-9]+.[0-9]+$ ]]; then
+            make upload/pypi
+          fi
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        on:
-          push:
-            branches:
-              - main
-            tags:
-              - '[0-9]+.[0-9]+.[0-9]+'
