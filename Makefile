@@ -62,7 +62,7 @@ venv: python/venv python/packages
 DIST_DIR ?= dist
 
 ## Build python package
-build: $(DIST_DIR) clean/build
+build: clean/build
 	@echo "[INFO] Building python package. Storing artificat in dist directory: [$(DIST_DIR)]"
 	@$(VIRTUALENV_BIN_DIR)/python setup.py sdist --dist-dir '${DIST_DIR}'
 .PHONY: build
@@ -194,8 +194,10 @@ docker/run:
 
 ## Clean python build directories
 clean/build:
-	@echo "[INFO] Cleaning python build directory '$(DIST_DIR)'";
-	@[ -d '$(DIST_DIR)' ] && rm -rf '$(DIST_DIR)/'*
+	-@if [ -d '$(DIST_DIR)' ]; then \
+		echo "[INFO] Cleaning python build directory '$(DIST_DIR)'"; \
+		rm -rf '$(DIST_DIR)/'*; \
+	fi
 .PHONY: clean/build
 
 ## Clean docker build images
