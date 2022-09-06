@@ -17,18 +17,35 @@ jobs:
       env-name: ${{ steps.env-name.outputs.environment }}
     steps:
       - uses: actions/checkout@v2
-      - name: Install Disto Packages
+      - name: Set up Python
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y software-properties-common jq make
           sudo add-apt-repository ppa:deadsnakes/ppa
           sudo apt-get install --no-install-recommends -y python${PYTHON_VERSION} python${PYTHON_VERSION}-venv python3-pip
-      - name: Configure Virtual Environment
-        run: |
-          make venv
+      - name: Install dependencies
+        run: make venv
       - name: Lint
-        run: |
-          make lint
-      - name: Build
-        run: |
-          make build
+        run: make lint
+      - name: Build package
+        run: make build
+      - name: Publish package to Test PyPI
+        run: make upload/testpypi
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TEST_API_TOKEN }}
+        on:
+          push:
+            branches:
+              - main
+      - name: Publish package to PyPI
+        run: make upload/pypi
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        on:
+          push:
+            branches:
+              - main
+            tags:
+              - '[0-9]+.[0-9]+.[0-9]+'
