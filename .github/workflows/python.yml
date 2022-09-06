@@ -11,7 +11,7 @@ env:
   PYTHON_VERSION: 3.9
 
 jobs:
-  validate:
+  build:
     runs-on: ubuntu-latest
     outputs:
       env-name: ${{ steps.env-name.outputs.environment }}
@@ -29,3 +29,6 @@ jobs:
       - name: Lint
         run: |
           make lint
+      - name: Build
+        run: |
+          make build

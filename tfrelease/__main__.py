@@ -10,7 +10,7 @@ import requests
 import semver
 import yaml
 from packaging.version import parse
-from utils.common import get_platform
+from .utils.common import get_platform
 
 TERRAFORM_RELEASES = "https://releases.hashicorp.com/terraform/index.json"
 
@@ -58,9 +58,7 @@ def rename_extended_versions(data: Dict[str, Any]) -> Dict[str, Any]:
     return data
 
 
-def filter_builds(
-    data: Dict[str, Any], build_filter: Dict[str, str] = get_platform()
-) -> Dict[str, Any]:
+def filter_builds(data: Dict[str, Any], build_filter: Dict[str, str]) -> Dict[str, Any]:
     """
     Filter build results based on build filter
     """

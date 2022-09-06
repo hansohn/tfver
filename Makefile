@@ -34,7 +34,7 @@ $(VENV_CFG):
 python/venv: $(VENV_CFG)
 .PHONY: python/venv
 
-# -- python venv  export path --
+# -- python venv export path --
 VIRTUALENV_BIN_DIR ?= $(VIRTUALENV_DIR)/bin
 
 # -- python install packages from requirements file --
@@ -42,7 +42,7 @@ PYTHON_REQUIREMENTS := requirements.txt
 PYTHON_DEV_REQUIREMENTS := requirements-dev.txt
 PYTHON_SRC_REQUIREMENTS := $(PYTHON_REQUIREMENTS) $(PYTHON_DEV_REQUIREMENTS)
 
-## Install pips from requirements file(s)
+## Python install packages from requirements file(s)
 python/packages: $(PYTHON_SRC_REQUIREMENTS)
 	@for i in $(^); do \
 		echo "[INFO] Installing python dependencies file: [$$i]"; \
@@ -54,6 +54,40 @@ python/packages: $(PYTHON_SRC_REQUIREMENTS)
 ## Create virtual environment and install requirements
 venv: python/venv python/packages
 .PHONY: venv
+
+#-------------------------------------------------------------------------------
+# build
+#-------------------------------------------------------------------------------
+
+DIST_DIR ?= dist
+
+## Build python package
+build: $(DIST_DIR) clean/build
+	@echo "[INFO] Building python package. Storing artificat in dist directory: [$(DIST_DIR)]"
+	@$(VIRTUALENV_BIN_DIR)/python setup.py sdist --dist-dir '${DIST_DIR}'
+.PHONY: build
+
+#-------------------------------------------------------------------------------
+# publish
+#-------------------------------------------------------------------------------
+
+## Python upload check
+upload/check:
+	@echo "[INFO] Checking whether the long description will render correctly on PyPI."
+	@$(VIRTUALENV_BIN_DIR)/twine check --strict dist/*
+.PHONY: upload/check
+
+## Python upload package to testpypi
+upload/testpypi: upload/check
+	@echo "[INFO] Uploading python package to testpypi"
+	@$(VIRTUALENV_BIN_DIR)/twine upload --repository testpypi dist/*
+.PHONY: upload/testpypi
+
+## Python upload package to pypi
+upload/pypi: upload/check
+	@echo "[INFO] Uploading python package to pypi"
+	@$(VIRTUALENV_BIN_DIR)/twine upload dist/*
+.PHONY: upload/pypi
 
 #-------------------------------------------------------------------------------
 # lint
@@ -127,18 +161,6 @@ lint: lint/all-python
 .PHONY: lint
 
 #-------------------------------------------------------------------------------
-# build
-#-------------------------------------------------------------------------------
-
-DIST_DIR ?= dist
-
-## Build python package
-build: $(DIST_DIR)
-	@echo "[INFO] Building python package. Storing artificat in dist directory: [$(DIST_DIR)]"
-	@$(VIRTUALENV_BIN_DIR)/python setup.py sdist --dist-dir '${DIST_DIR}'
-.PHONY: build
-
-#-------------------------------------------------------------------------------
 # docker
 #-------------------------------------------------------------------------------
 
@@ -172,6 +194,7 @@ docker/run:
 
 ## Clean python build directories
 clean/build:
+	@echo "[INFO] Cleaning python build directory '$(DIST_DIR)'";
 	@[ -d '$(DIST_DIR)' ] && rm -rf '$(DIST_DIR)/'*
 .PHONY: clean/build
 
@@ -179,6 +202,7 @@ clean/build:
 clean/docker:
 	-@if docker stats --no-stream > /dev/null 2>&1; then \
 		if docker inspect --type=image "$(DOCKER_USER)/$(DOCKER_REPO):$(DOCKER_TAG)" > /dev/null 2>&1; then \
+			echo "[INFO] Removing docker image '$(DOCKER_USER)/$(DOCKER_REPO):$(DOCKER_TAG)'"; \
 			docker image rm  "$(DOCKER_USER)/$(DOCKER_REPO):$(DOCKER_TAG)"; \
 		fi; \
 	fi
@@ -186,9 +210,10 @@ clean/docker:
 
 ## Clean virtual environment directory
 clean/venv:
+	@echo "[INFO] Cleaning python virtualenv directory '$(VIRTUALENV_DIR)'";
 	@[ -d '$(VIRTUALENV_DIR)' ] && rm -rf '$(VIRTUALENV_DIR)/'*
 .PHONY: clean/venv
 
 ## Clean
-clean: clean/build clean/docker clean/venv
+clean: clean/build clean/venv clean/docker
 .PHONY: clean
