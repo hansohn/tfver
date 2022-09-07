@@ -31,6 +31,10 @@ jobs:
         run: make build
       - name: Publish package to PyPI
         run: |
+          cat << EOF
+          GITHUB_REF_TYPE: ${GITHUB_REF_TYPE}
+          GITHUB_REF_NAME: ${GITHUB_REF_NAME}
+          EOF
           if [[ "$GITHUB_REF_TYPE" == "tag" ]] && [[ "$GITHUB_REF_NAME" =~ ^[0-9]+.[0-9]+.[0-9]+$ ]]; then
             make upload/pypi
           fi
