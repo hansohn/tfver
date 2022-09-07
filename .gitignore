@@ -376,4 +376,4 @@ samconfig.toml
 
 # pyrelease
 tfrelease/git_version
-tfrelease/version
+tfrelease/version.py
