@@ -1,17 +1,16 @@
 ---
-name: Python
+name: Deploy Python Package
 
 on:
-  pull_request:
   push:
-    branches:
-      - main
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
 
 env:
   PYTHON_VERSION: 3.9
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     outputs:
       env-name: ${{ steps.env-name.outputs.environment }}
@@ -37,10 +36,7 @@ jobs:
       - name: Build package
         run: make build
       - name: Publish package
-        run: |
-          if [[ "$GITHUB_REF_TYPE" == "tag" ]] && [[ "$GITHUB_REF_NAME" =~ ^[0-9]+.[0-9]+.[0-9]+$ ]]; then
-            make upload/pypi
-          fi
+        run: make upload/pypi
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
