@@ -10,7 +10,7 @@ export SELF ?= $(MAKE)
 PROJECT_PATH ?= $(shell 'pwd')
 include $(PROJECT_PATH)/Makefile.*
 
-all: venv build docker/build docker/run
+all: python/venv python/build docker/build docker/run
 .PHONY: all
 
 REPO_NAME ?= $(shell basename $(CURDIR))
@@ -30,7 +30,7 @@ $(VENV_CFG):
 	@echo "[INFO] Creating python virtual env under directory: [$(VIRTUALENV_DIR)]"
 	@python$(PYTHON_VERSION) -m venv '$(VIRTUALENV_DIR)'
 
-## Configure virtual environment
+## Python configure virtual environment
 python/venv: $(VENV_CFG)
 .PHONY: python/venv
 
@@ -61,10 +61,14 @@ venv: python/venv python/packages
 
 DIST_DIR ?= dist
 
-## Build python package
-build: clean/build
+## Python build package
+python/build: clean/build
 	@echo "[INFO] Building python package. Storing artificat in dist directory: [$(DIST_DIR)]"
 	@$(VIRTUALENV_BIN_DIR)/python setup.py sdist --dist-dir '${DIST_DIR}'
+.PHONY: python/build
+
+## Build python package
+build: python/venv python/build
 .PHONY: build
 
 #-------------------------------------------------------------------------------
@@ -152,12 +156,8 @@ lint/bandit: $(SRC_DIR)
 	done
 .PHONY: lint/bandit
 
-## Run all 'python' linters, validators, and security analyzers
-lint/all-python: lint/pylint lint/flake8 lint/mypy lint/black lint/bandit
-.PHONY: lint/all-python
-
 ## Run all linters, validators, and security analyzers
-lint: lint/all-python
+lint: lint/pylint lint/flake8 lint/mypy lint/black lint/bandit
 .PHONY: lint
 
 #-------------------------------------------------------------------------------
@@ -188,6 +188,10 @@ docker/run:
 	fi
 .PHONY: docker/run
 
+## Docker launch testing environment
+docker: python/venv python/build docker/build docker/run
+.PHONY: docker
+
 #-------------------------------------------------------------------------------
 # clean
 #-------------------------------------------------------------------------------
@@ -216,6 +220,6 @@ clean/venv:
 	@[ -d '$(VIRTUALENV_DIR)' ] && rm -rf '$(VIRTUALENV_DIR)/'*
 .PHONY: clean/venv
 
-## Clean
+## Clean everything
 clean: clean/build clean/venv clean/docker
 .PHONY: clean
