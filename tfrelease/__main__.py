@@ -3,6 +3,7 @@
 import copy
 import json
 import re
+import sys
 from typing import Any, Dict, List, Union
 
 import click
@@ -10,9 +11,28 @@ import requests
 import semver
 import yaml
 from packaging.version import parse
+
 from .utils.common import get_platform
 
 TERRAFORM_RELEASES = "https://releases.hashicorp.com/terraform/index.json"
+
+
+def is_major(version: str) -> bool:
+    """
+    Tests whether version is a modified single integer value.
+    Example if version == 1, retrun true
+    """
+    test = version.count(".") == 0
+    return test
+
+
+def is_minor(version: str) -> bool:
+    """
+    Tests whether version is a modified major minor integer value.
+    Example if version == 1.1, retrun true
+    """
+    test = version.count(".") == 1
+    return test
 
 
 def max_version(versions: List[str]) -> str:
@@ -24,7 +44,10 @@ def max_version(versions: List[str]) -> str:
 
 def extend_versions(data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Ingest list of versions and return dict of semver metadata
+    Ingests dict of versions and extends version objects to include latest major
+    release as M and latest minor releases as M.m. This fuctionality is the basis
+    for supporting extended version queries. Returns recompiled dict of versions
+    and associated version metadata.
     """
     modified: Dict[str, Any] = {}
     for key, val in data.items():
@@ -73,19 +96,34 @@ def filter_builds(data: Dict[str, Any], build_filter: Dict[str, str]) -> Dict[st
     return data
 
 
-def generate_tags(data: Dict[str, Any], tag_format: str = "{tag}") -> Dict[str, Any]:
+def generate_tags(
+    data: Dict[str, Any],
+    incl_major: bool = False,
+    incl_minor: bool = False,
+    template: str = "{tag}",
+) -> Dict[str, Any]:
     """
-    populate dict with tags key and associates tag values
+    Populates dict with tags key and associated values. Formats tags based on
+    template arguement.
     """
-    fmt = lambda tag: tag_format.format(tag=tag)
+    fmt = lambda tag: template.format(tag=tag)
     for key, val in data.items():
+        # include verification
+        if is_major(key) and not incl_major:
+            continue
+        if is_minor(key) and not incl_minor:
+            continue
+        # tagging
         if i := val.get("tags", None):
             data[key]["tags"] = list(set(i + [fmt(key)]))
-        elif "." not in key:
-            version = val["version"]
-            mmp = version.split(".")
-            maj_min = ".".join(mmp[0:2])
-            data[key].update({"tags": [fmt(key), fmt(maj_min)]})
+        elif is_major(key):
+            tags = [fmt(key)]
+            if incl_minor:
+                version = val["version"]
+                mmp = version.split(".")
+                maj_min = ".".join(mmp[0:2])
+                tags.append(fmt(maj_min))
+            data[key].update({"tags": tags})
         else:
             data[key].update({"tags": [fmt(key)]})
         data[key]["tags"].sort()
@@ -166,11 +204,13 @@ def sort_dict(data: Dict[str, Any]) -> Dict[str, Any]:
 )
 @click.option(
     "-t",
-    "--tag-format",
+    "--tag-template",
     type=str,
-    help="Template to use when formating tags. Template must include '{tag}' keyword \
-            which will be replaced with actual tag value during formatting. \
-            example: 'foo/bar:{tag}-dev'",
+    help=(
+        "Template to use when formating tags. Template must include '{tag}' keyword "
+        "which will be replaced with actual tag value during formatting. "
+        "example: 'foo/bar:{tag}-dev'"
+    ),
 )
 @click.option(
     "-o",
@@ -181,31 +221,50 @@ def sort_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     help="The formatting style for command output.",
 )
 @click.option(
-    "-L",
-    "--to-list",
+    "-f",
+    "--format-list",
     is_flag=True,
     help="Reformats 'versions' key value to list of dicts. Value type defaults to dict",
+)
+@click.option(
+    "-M",
+    "--major",
+    is_flag=True,
+    help=(
+        "Includes major version tag in lastest major version build metadata. example: 1.2.3 -> 1"
+    ),
+)
+@click.option(
+    "-m",
+    "--minor",
+    is_flag=True,
+    help=(
+        "Includes minor version tag in lastest minor version build metadata. "
+        "example: 1.2.3 -> 1.2"
+    ),
 )
 @click.option("-p", "--prerelease", is_flag=True, help="Include pre-release versions in response.")
 @click.option("-v", "--verbose", is_flag=True, help="Include all release metadata in response.")
 @click.option(
     "-V",
-    "--bverbose",
+    "--verboseb",
     is_flag=True,
     help="Include all release metadata and all builds in response.",
 )
 @click.version_option()
 def main(
-    url: str = TERRAFORM_RELEASES,
-    count: int = 1,
-    regex: Union[str, None] = None,
     build: Union[str, None] = None,
-    tag_format: Union[str, None] = "{tag}",
-    to_list: bool = False,
+    count: int = 1,
+    format_list: bool = False,
+    major: bool = False,
+    minor: bool = False,
     output: str = "json",
     prerelease: bool = False,
+    regex: Union[str, None] = None,
+    tag_template: Union[str, None] = "{tag}",
+    url: str = TERRAFORM_RELEASES,
     verbose: bool = False,
-    bverbose: bool = False,
+    verboseb: bool = False,
 ):
     """
     Gathers a historical list of Terraform versions and their metadata. Produces
@@ -232,8 +291,8 @@ def main(
     data.update({"versions": extend_versions(data["versions"])})
 
     # generate tags
-    tag_format = tag_format if tag_format and "{tag}" in tag_format else "{tag}"
-    data.update({"versions": generate_tags(data["versions"], tag_format)})
+    tag_template = tag_template if tag_template and "{tag}" in tag_template else "{tag}"
+    data.update({"versions": generate_tags(data["versions"], major, minor, tag_template)})
 
     # sort versions
     data.update({"versions": sort_dict(data=data["versions"])})
@@ -241,7 +300,7 @@ def main(
     # compute latest tag
     mmp_versions = filter_list(data=data["versions"].keys(), pattern=r"^v?\d+\.\d+\.\d+$")
     latest_mmp = max_version(mmp_versions)
-    data["versions"][latest_mmp]["tags"] += [tag_format.format(tag="latest")]
+    data["versions"][latest_mmp]["tags"] += [tag_template.format(tag="latest")]
 
     # if regex, filter versions based on regex pattern
     # else return n results from data structure
@@ -258,30 +317,32 @@ def main(
     release_vers = list(release_data["versions"].keys())
 
     # filter builds
-    verbose = True if to_list else verbose
     if build or verbose:
         if build and "=" in build:
             verbose = True
             build_filter = dict([i.split("=") for i in build.split(",")])
         elif verbose:
             build_filter = get_platform()
+        else:
+            click.echo(f"==> Error: unsupported build filter format: '{build}'")
+            sys.exit(1)
         release_data.update(
             {"versions": filter_builds(data=data["versions"], build_filter=build_filter)}
         )
 
     # convert versions to list of dicts
-    if to_list:
+    if format_list:
         versions_list = list({ver: meta} for ver, meta in release_data["versions"].items())
         release_data.update({"versions": versions_list})
 
     # set single version response to string
     if len(release_vers) == 1:
-        if not verbose and not bverbose:
+        if not verbose and not verboseb:
             output = "text"
         release_vers = release_vers[0]
 
     # determine response type
-    response = release_data if verbose or bverbose else release_vers
+    response = release_data if verbose or verboseb else release_vers
 
     # format response for output
     if output.lower() == "text":
