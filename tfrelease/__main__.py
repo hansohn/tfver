@@ -19,8 +19,8 @@ TERRAFORM_RELEASES = "https://releases.hashicorp.com/terraform/index.json"
 
 def is_major(version: str) -> bool:
     """
-    Tests whether version is a modified single integer value.
-    Example if version == 1, retrun true
+    Tests whether version is formatted as a single integer value.
+    Example if version == 1, return true
     """
     test = version.count(".") == 0
     return test
@@ -28,8 +28,8 @@ def is_major(version: str) -> bool:
 
 def is_minor(version: str) -> bool:
     """
-    Tests whether version is a modified major minor integer value.
-    Example if version == 1.1, retrun true
+    Tests whether version is formatted as a major minor integer value.
+    Example if version == 1.1, return true
     """
     test = version.count(".") == 1
     return test
@@ -207,8 +207,8 @@ def sort_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     "--tag-template",
     type=str,
     help=(
-        "Template to use when formating tags. Template must include '{tag}' keyword "
-        "which will be replaced with actual tag value during formatting. "
+        "Format tags to templatized string. String template must include '{tag}' "
+        "keyword which will be replaced with actual tag value during formatting. "
         "example: 'foo/bar:{tag}-dev'"
     ),
 )
@@ -224,14 +224,15 @@ def sort_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     "-f",
     "--format-list",
     is_flag=True,
-    help="Reformats 'versions' key value to list of dicts. Value type defaults to dict",
+    help="Reformats 'versions' key value to list of dicts. Defaults to dict.",
 )
 @click.option(
     "-M",
     "--major",
     is_flag=True,
     help=(
-        "Includes major version tag in lastest major version build metadata. example: 1.2.3 -> 1"
+        "Includes major version tag in metadata of all lastest major version releases. "
+        "example: 1.2.3 -> 1"
     ),
 )
 @click.option(
@@ -239,7 +240,7 @@ def sort_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     "--minor",
     is_flag=True,
     help=(
-        "Includes minor version tag in lastest minor version build metadata. "
+        "Includes minor version tag in metadata of all lastest minor version releases. "
         "example: 1.2.3 -> 1.2"
     ),
 )
