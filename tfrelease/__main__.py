@@ -221,10 +221,10 @@ def sort_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     help="The formatting style for command output.",
 )
 @click.option(
-    "-f",
-    "--format-list",
+    "-L",
+    "--vlist",
     is_flag=True,
-    help="Reformats 'versions' key value to list of dicts. Defaults to dict.",
+    help="Reformats 'versions' key to list of dicts. Defaults to key/value version dicts.",
 )
 @click.option(
     "-M",
@@ -256,7 +256,6 @@ def sort_dict(data: Dict[str, Any]) -> Dict[str, Any]:
 def main(
     build: Union[str, None] = None,
     count: int = 1,
-    format_list: bool = False,
     major: bool = False,
     minor: bool = False,
     output: str = "json",
@@ -266,6 +265,7 @@ def main(
     url: str = TERRAFORM_RELEASES,
     verbose: bool = False,
     verboseb: bool = False,
+    vlist: bool = False,
 ):
     """
     Gathers a historical list of Terraform versions and their metadata. Produces
@@ -332,9 +332,9 @@ def main(
         )
 
     # convert versions to list of dicts
-    if format_list:
-        versions_list = list({ver: meta} for ver, meta in release_data["versions"].items())
-        release_data.update({"versions": versions_list})
+    if vlist:
+        versions = list(meta for _, meta in release_data["versions"].items())
+        release_data.update({"versions": versions})
 
     # set single version response to string
     if len(release_vers) == 1:
