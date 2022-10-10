@@ -161,18 +161,49 @@ lint: lint/pylint lint/flake8 lint/mypy lint/black lint/bandit
 .PHONY: lint
 
 #-------------------------------------------------------------------------------
+# git
+#-------------------------------------------------------------------------------
+
+GIT_BRANCH ?= $(shell git branch --show-current)
+GIT_HASH := $(shell git rev-parse --short HEAD)
+
+#-------------------------------------------------------------------------------
 # docker
 #-------------------------------------------------------------------------------
 
 DOCKER_USER ?= hansohn
 DOCKER_REPO ?= tfrelease
-DOCKER_TAG ?= latest
+DOCKER_TAG_BASE ?= $(DOCKER_USER)/$(DOCKER_REPO)
+
+DOCKER_TAGS ?=
+DOCKER_TAGS += --tag $(DOCKER_TAG_BASE):$(GIT_HASH)
+ifeq ($(GIT_BRANCH), main)
+DOCKER_TAGS += --tag $(DOCKER_TAG_BASE):latest
+DOCKER_TAGS += --tag $(DOCKER_TAG_BASE):$(TERRAFORM_VERSION)
+endif
+
+DOCKER_BUILD_PATH ?= .
+DOCKER_BUILD_ARGS ?=
+DOCKER_BUILD_ARGS += $(DOCKER_TAGS)
+
+DOCKER_PUSH_ARGS ?=
+DOCKER_PUSH_ARGS += --all-tags
+
+## Lint Dockerfile
+docker/lint:
+	-@if docker stats --no-stream > /dev/null 2>&1; then \
+		echo "[INFO] Linting '$(DOCKER_BUILD_PATH)/Dockerfile'."; \
+		docker run --rm -i hadolint/hadolint < $(DOCKER_BUILD_PATH)/Dockerfile; \
+	else \
+		echo "[ERROR] Docker 'lint' failed. Docker daemon is not Running."; \
+	fi
+.PHONY: docker/lint
 
 ## Docker build image
 docker/build:
 	-@if docker stats --no-stream > /dev/null 2>&1; then \
-		echo "[INFO] Building '$(DOCKER_USER)/$(DOCKER_REPO):$(DOCKER_TAG)' docker image."; \
-		docker build -t "$(DOCKER_USER)/$(DOCKER_REPO):$(DOCKER_TAG)" .; \
+		echo "[INFO] Building '$(DOCKER_USER)/$(DOCKER_REPO)' docker image."; \
+		docker build $(DOCKER_BUILD_ARGS) $(DOCKER_BUILD_PATH)/; \
 	else \
 		echo "[ERROR] Docker 'build' failed. Docker daemon is not Running."; \
 	fi
@@ -181,15 +212,25 @@ docker/build:
 ## Docker run image
 docker/run:
 	-@if docker stats --no-stream > /dev/null 2>&1; then \
-		echo "[INFO] Running '$(DOCKER_USER)/$(DOCKER_REPO):$(DOCKER_TAG)' docker image"; \
-		docker run -it --rm "$(DOCKER_USER)/$(DOCKER_REPO):$(DOCKER_TAG)" bash; \
+		echo "[INFO] Running '$(DOCKER_USER)/$(DOCKER_REPO)' docker image"; \
+		docker run -it --rm "$(DOCKER_TAG_BASE):$(GIT_HASH)" bash; \
 	else \
 		echo "[ERROR] Docker 'run' failed. Docker daemon is not Running."; \
 	fi
 .PHONY: docker/run
 
+## Docker push image
+docker/push:
+	-@if docker stats --no-stream > /dev/null 2>&1; then \
+		echo "[INFO] Pushing '$(DOCKER_USER)/$(DOCKER_REPO)' docker image"; \
+		docker push $(DOCKER_PUSH_ARGS) $(DOCKER_TAG_BASE); \
+	else \
+		echo "[ERROR] Docker 'push' failed. Docker daemon is not Running."; \
+	fi
+.PHONY: docker/push
+
 ## Docker launch testing environment
-docker: python/venv python/build docker/build docker/run
+docker: python/venv python/build docker/lint docker/build docker/run
 .PHONY: docker
 
 #-------------------------------------------------------------------------------
@@ -207,9 +248,9 @@ clean/build:
 ## Clean docker build images
 clean/docker:
 	-@if docker stats --no-stream > /dev/null 2>&1; then \
-		if docker inspect --type=image "$(DOCKER_USER)/$(DOCKER_REPO):$(DOCKER_TAG)" > /dev/null 2>&1; then \
-			echo "[INFO] Removing docker image '$(DOCKER_USER)/$(DOCKER_REPO):$(DOCKER_TAG)'"; \
-			docker image rm  "$(DOCKER_USER)/$(DOCKER_REPO):$(DOCKER_TAG)"; \
+		if docker inspect --type=image "$(DOCKER_TAG_BASE):$(GIT_HASH)" > /dev/null 2>&1; then \
+			echo "[INFO] Removing docker image '$(DOCKER_USER)/$(DOCKER_REPO)'"; \
+			docker rmi -f $$(docker inspect --format='{{ .Id }}' --type=image $(DOCKER_TAG_BASE):$(GIT_HASH)); \
 		fi; \
 	fi
 .PHONY: clean/docker
