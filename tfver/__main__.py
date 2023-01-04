@@ -217,7 +217,7 @@ def sort_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     "--output",
     default="json",
     show_default=True,
-    type=click.Choice(["text", "json", "yaml"], case_sensitive=False),
+    type=click.Choice(["tfget", "text", "json", "yaml"], case_sensitive=False),
     help="The formatting style for command output.",
 )
 @click.option(
@@ -346,7 +346,9 @@ def main(
     response = release_data if verbose or verboseb else release_vers
 
     # format response for output
-    if output.lower() == "text":
+    if output.lower() == "tfget":
+        click.echo(",".join(release_vers))
+    elif output.lower() == "text":
         click.echo(response)
     elif output.lower() == "yaml":
         click.echo(yaml.dump(response, indent=4, sort_keys=True))

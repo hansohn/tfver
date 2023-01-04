@@ -15,4 +15,4 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
       python${PYTHON_VERSION} \
       python3-pip
 COPY dist/. /root/
-RUN /bin/bash -c 'pip install /root/tfrelease-*.tar.gz'
+RUN /bin/bash -c 'pip install /root/tfver-*.tar.gz'

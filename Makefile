@@ -14,7 +14,7 @@ all: python/venv python/build docker/build docker/run
 .PHONY: all
 
 REPO_NAME ?= $(shell basename $(CURDIR))
-SRC_DIR := tfrelease
+SRC_DIR := tfver
 
 #-------------------------------------------------------------------------------
 # python
@@ -172,7 +172,7 @@ GIT_HASH := $(shell git rev-parse --short HEAD)
 #-------------------------------------------------------------------------------
 
 DOCKER_USER ?= hansohn
-DOCKER_REPO ?= tfrelease
+DOCKER_REPO ?= $(REPO_NAME)
 DOCKER_TAG_BASE ?= $(DOCKER_USER)/$(DOCKER_REPO)
 
 DOCKER_TAGS ?=

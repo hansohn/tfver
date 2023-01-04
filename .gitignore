@@ -375,5 +375,5 @@ samconfig.toml
 # End of https://www.toptal.com/developers/gitignore/api/osx,macos,linux,python,pycharm,visualstudiocode,sam+config
 
 # pyrelease
-tfrelease/git_version
-tfrelease/version.py
+tfver/git_version
+tfver/version.py

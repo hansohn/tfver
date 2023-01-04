@@ -3,4 +3,3 @@ packaging
 pyyaml
 requests
 semver
-typing

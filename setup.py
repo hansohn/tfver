@@ -6,6 +6,6 @@ from setuptools import setup
 
 setup(
     use_scm_version = {
-        "write_to": "tfrelease/version.py",
+        "write_to": "tfver/version.py",
     }
 )
