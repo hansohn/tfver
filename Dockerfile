@@ -1,18 +1,15 @@
-ARG DEBIAN_VERSION=stable-slim
+ARG PYTHON_VERSION=3.12
 
-# debian
-FROM debian:${DEBIAN_VERSION}
-ARG PYTHON_VERSION=3.9
-ENV CURL='curl -fsSL --netrc-optional'
+# python
+FROM python:${PYTHON_VERSION} AS main
+ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install --no-install-recommends -y \
       bash \
+      gpg-agent \
       jq \
       software-properties-common \
       tar \
-      vim \
-    && add-apt-repository ppa:deadsnakes/ppa \
-    && apt-get install --no-install-recommends -y \
-      python${PYTHON_VERSION} \
-      python3-pip
-COPY dist/. /root/
-RUN /bin/bash -c 'pip install /root/tfver-*.tar.gz'
+      vim
+WORKDIR /app
+COPY dist/. .
+RUN /bin/bash -c 'python${PYTHON_VERSION%%.*} -m pip install /app/tfver-*.tar.gz'

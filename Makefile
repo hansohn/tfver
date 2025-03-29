@@ -15,12 +15,13 @@ all: python/venv python/build docker/build docker/run
 
 REPO_NAME ?= $(shell basename $(CURDIR))
 SRC_DIR := tfver
+TEST_DIR := tests
 
 #-------------------------------------------------------------------------------
 # python
 #-------------------------------------------------------------------------------
 
-PYTHON_VERSION ?= 3.9
+PYTHON_VERSION ?= 3.12
 
 # -- python venv --
 VIRTUALENV_DIR ?= .venv
@@ -64,11 +65,11 @@ DIST_DIR ?= dist
 ## Python build package
 python/build: clean/build
 	@echo "[INFO] Building python package. Storing artificat in dist directory: [$(DIST_DIR)]"
-	@$(VIRTUALENV_BIN_DIR)/python setup.py sdist --dist-dir '${DIST_DIR}'
+	@$(VIRTUALENV_BIN_DIR)/python -m build --sdist --outdir '${DIST_DIR}'
 .PHONY: python/build
 
 ## Build python package
-build: python/venv python/build
+build: python/venv python/packages python/build
 .PHONY: build
 
 #-------------------------------------------------------------------------------
@@ -99,7 +100,7 @@ upload/pypi: upload/check
 
 # -- pylint --
 PYLINT_DISABLE_IDS ?= W0511
-PYTHON_LINTER_MAX_LINE_LENGTH ?= 100
+PYTHON_LINTER_MAX_LINE_LENGTH ?= 80
 ## Python linter
 lint/pylint: $(SRC_DIR)
 	-@for i in $(^); do \
@@ -161,6 +162,35 @@ lint: lint/pylint lint/flake8 lint/mypy lint/black lint/bandit
 .PHONY: lint
 
 #-------------------------------------------------------------------------------
+# test
+#-------------------------------------------------------------------------------
+
+# -- pytest --
+## Python Test Framework
+test/pytest: $(TEST_DIR)
+	-@for i in $(^); do \
+		echo "[INFO] running pytest on dir: [$$i]"; \
+		$(VIRTUALENV_BIN_DIR)/pytest \
+			"$$i"; \
+	done
+.PHONY: test/pytest
+
+# -- codecov --
+## Python CodeCov Testing
+test/codecov: $(TEST_DIR)
+	-@for i in $(^); do \
+		echo "[INFO] running DOCKER_BUILD_ARGSodecov on dir: [$$i]"; \
+		$(VIRTUALENV_BIN_DIR)/pytest \
+			--cov="$(SRC_DIR)" \
+			"$$i"; \
+	done
+.PHONY: test/codecov
+
+## Run all tests
+test: test/pytest test/codecov
+.PHONY: test
+
+#-------------------------------------------------------------------------------
 # git
 #-------------------------------------------------------------------------------
 
@@ -183,6 +213,7 @@ endif
 
 DOCKER_BUILD_PATH ?= .
 DOCKER_BUILD_ARGS ?=
+DOCKER_BUILD_ARGS += --build-arg PYTHON_VERSION=$(PYTHON_VERSION)
 DOCKER_BUILD_ARGS += $(DOCKER_TAGS)
 
 DOCKER_PUSH_ARGS ?=
@@ -190,7 +221,7 @@ DOCKER_PUSH_ARGS += --all-tags
 
 ## Lint Dockerfile
 docker/lint:
-	-@if docker stats --no-stream > /dev/null 2>&1; then \
+	-@if docker info > /dev/null 2>&1; then \
 		echo "[INFO] Linting '$(DOCKER_BUILD_PATH)/Dockerfile'."; \
 		docker run --rm -i hadolint/hadolint < $(DOCKER_BUILD_PATH)/Dockerfile; \
 	else \
@@ -200,7 +231,7 @@ docker/lint:
 
 ## Docker build image
 docker/build:
-	-@if docker stats --no-stream > /dev/null 2>&1; then \
+	-@if docker info > /dev/null 2>&1; then \
 		echo "[INFO] Building '$(DOCKER_USER)/$(DOCKER_REPO)' docker image."; \
 		docker build $(DOCKER_BUILD_ARGS) $(DOCKER_BUILD_PATH)/; \
 	else \
@@ -210,7 +241,7 @@ docker/build:
 
 ## Docker run image
 docker/run:
-	-@if docker stats --no-stream > /dev/null 2>&1; then \
+	-@if docker info > /dev/null 2>&1; then \
 		echo "[INFO] Running '$(DOCKER_USER)/$(DOCKER_REPO)' docker image"; \
 		docker run -it --rm "$(DOCKER_TAG_BASE):$(GIT_HASH)" bash; \
 	else \
@@ -220,7 +251,7 @@ docker/run:
 
 ## Docker push image
 docker/push:
-	-@if docker stats --no-stream > /dev/null 2>&1; then \
+	-@if docker info > /dev/null 2>&1; then \
 		echo "[INFO] Pushing '$(DOCKER_USER)/$(DOCKER_REPO)' docker image"; \
 		docker push $(DOCKER_PUSH_ARGS) $(DOCKER_TAG_BASE); \
 	else \
@@ -229,7 +260,7 @@ docker/push:
 .PHONY: docker/push
 
 ## Docker launch testing environment
-docker: python/venv python/build docker/lint docker/build docker/run
+docker: python/venv python/packages python/build docker/lint docker/build docker/run
 .PHONY: docker
 
 #-------------------------------------------------------------------------------
@@ -246,13 +277,21 @@ clean/build:
 
 ## Clean docker build images
 clean/docker:
-	-@if docker stats --no-stream > /dev/null 2>&1; then \
+	-@if docker info > /dev/null 2>&1; then \
 		if docker inspect --type=image "$(DOCKER_TAG_BASE):$(GIT_HASH)" > /dev/null 2>&1; then \
 			echo "[INFO] Removing docker image '$(DOCKER_USER)/$(DOCKER_REPO)'"; \
 			docker rmi -f $$(docker inspect --format='{{ .Id }}' --type=image $(DOCKER_TAG_BASE):$(GIT_HASH)); \
 		fi; \
 	fi
 .PHONY: clean/docker
+
+## Clean python cache files
+clean/python:
+	@echo "[INFO] Cleaning python cache files";
+	@find . -name "__pycache__" -type d -exec rm -rf {} +
+	@find . -name ".pytest_cache" -type d -exec rm -rf {} +
+	@find . -name "*.pyc" -delete
+.PHONY: clean/python
 
 ## Clean virtual environment directory
 clean/venv:
@@ -261,5 +300,5 @@ clean/venv:
 .PHONY: clean/venv
 
 ## Clean everything
-clean: clean/build clean/venv clean/docker
+clean: clean/build clean/python clean/venv clean/docker
 .PHONY: clean
