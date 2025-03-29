@@ -1,6 +1,6 @@
 [build-system]
+requires = ["setuptools>=64", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
-requires = ["setuptools", "setuptools_scm>=8"]
 
 [project]
 name = "tfver"
@@ -23,11 +23,11 @@ urls.Source = "https://github.com/hansohn/tfver"
 urls.Tracker = "https://github.com/hansohn/tfver/issues"
 scripts.tfver = "tfver.__main__:main"
 
-[tool.setuptools.dynamic]
-version = { attr = "tfver.version.__version__" }
+# [tool.setuptools.dynamic]
+# version = { attr = "tfver.version.__version__" }
 
 [tool.setuptools_scm]
-version_file = "tfver/version.py"
+version_file = "tfver/_version.py"
 
 # [tool.setuptools.packages.find]
 # include = ["tfver"]
