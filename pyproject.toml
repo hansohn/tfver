@@ -1,0 +1,36 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools", "setuptools_scm>=8"]
+
+[project]
+name = "tfver"
+description = "Fetches metadata from Terraform releases"
+readme.content-type = "text/markdown"
+readme.file = "README.md"
+keywords = ["terraform", "release"]
+license = "MIT AND (Apache-2.0 OR BSD-2-Clause)"
+maintainers = [{ name = "Ryan Hansohn", email = "info@imnorobot.com" }]
+authors = [{ name = "Ryan Hansohn", email = "info@imnorobot.com" }]
+requires-python = ">=3.8"
+classifiers = [
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "Programming Language :: Python :: 3",
+]
+dynamic = ["version"]
+dependencies = ["click", "packaging", "pyyaml", "requests", "semver", "typing"]
+urls.Source = "https://github.com/hansohn/tfver"
+urls.Tracker = "https://github.com/hansohn/tfver/issues"
+scripts.tfver = "tfver.__main__:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "tfver.version.__version__" }
+
+[tool.setuptools_scm]
+version_file = "tfver/version.py"
+
+# [tool.setuptools.packages.find]
+# include = ["tfver"]
+# 
+# [tool.setuptools.package-data]
+# tfver = ["git_version"]
