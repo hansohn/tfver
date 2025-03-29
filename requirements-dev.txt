@@ -6,7 +6,8 @@ mypy
 pylint
 pytest
 pytest-cov
-setuptools-scm
+setuptools
+setuptools_scm
 tox
 twine
 types-PyYAML
